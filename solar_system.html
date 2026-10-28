@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>النظام الشمسي | Solar System</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#04050b;--ink:#eef0f8;--mute:#8d95b3;--line:rgba(255,255,255,.12);--glass:rgba(10,13,28,.78);--gold:#f4c35a;--c:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,"Segoe UI",Tahoma,Arial,sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.glass{background:var(--glass);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#head{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:20px;pointer-events:none}
+#head h1{margin:0;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:.2px}
+#head p{margin:4px 0 0;color:var(--mute);font-size:13px}
+#ctl{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:16px;display:flex;gap:8px;align-items:center;padding:8px 10px;font-size:12px;flex-wrap:wrap;max-width:calc(100vw - 32px)}
+button{background:rgba(255,255,255,.06);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:5px 11px;font:inherit;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{background:rgba(255,255,255,.14)}
+button[aria-pressed=false]{opacity:.5}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input[type=range]{accent-color:var(--gold);width:90px;vertical-align:middle}
+#yr{color:var(--gold);font-variant-numeric:tabular-nums;min-width:112px;text-align:center}
+#chips{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;overflow-x:auto;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px));scrollbar-width:none;justify-content:safe center}
+#chips button{display:flex;gap:7px;align-items:center;white-space:nowrap;border-radius:99px;padding:5px 13px 5px 9px;background:var(--glass);flex:none}
+#chips i{width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+#chips button.on{border-color:var(--c);background:rgba(255,255,255,.14)}
+#chips span{color:var(--mute);font-size:12px}
+#tip{position:fixed;z-index:5;width:430px;max-width:calc(100vw - 16px);padding:14px 16px 12px;display:none;pointer-events:none;font-size:13px;line-height:1.5;box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px var(--c) inset;border-top:3px solid var(--c)}
+#tip.dock{right:16px;top:calc(96px + env(safe-area-inset-top,0px));left:auto}
+#tip h2{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:22px;font-weight:700}
+#tip h2 span{font-size:16px;font-weight:400;color:var(--mute);direction:ltr}
+#tip .sz{margin:6px 0 10px;color:var(--gold);font-size:12px;display:flex;justify-content:space-between}
+#tip .g{display:grid;grid-template-columns:1fr 1fr;gap:7px 18px}
+#tip .g div{min-width:0}
+#tip small{display:block;color:var(--mute);font-size:11px}
+#tip .ar{direction:rtl;text-align:right}
+#tip .en{direction:ltr;text-align:left}
+#tip .fa{grid-column:1/-1;display:contents}
+@media(max-width:700px){#head h1{font-size:22px}#head p{display:none}#tip.dock{top:auto;left:8px;right:8px;bottom:62px;width:auto;max-height:46vh;overflow:hidden}#tip{font-size:12px}#ctl{top:auto;bottom:60px;right:8px;opacity:.92}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="head"><h1>النظام الشمسي</h1><p>Solar System · مرّر على الكوكب أو اضغط عليه · Hover or click a planet</p></div>
+<div id="ctl" class="glass">
+<button id="pp" aria-pressed="true">إيقاف · Pause</button>
+<button id="bo" aria-pressed="true">المدارات · Orbits</button>
+<button id="bl" aria-pressed="true">الأسماء · Labels</button>
+<label>السرعة · Speed <input id="sp" type="range" min="0.2" max="6" step="0.1" value="1"></label>
+<span id="yr"></span>
+</div>
+<canvas id="c" aria-label="Solar system animation"></canvas>
+<div id="tip" class="glass" role="status"></div>
+<div id="chips"></div>
+<script>
+const P=[
+{n:["الشمس","Sun"],c:"#ffb627",r:34,k:1392700,g:274,sun:1,d:["1,392,700 كم","1,392,700 km"],dist:["مركز النظام الشمسي","Center of the system"],yr:["تدور حول مركز المجرة كل ~230 مليون سنة","Circles the galaxy every ~230 million years"],day:["≈ 25 يوماً (عند خط الاستواء)","≈ 25 days (at the equator)"],m:["لا يوجد","None"],t:["≈ 5,500°م (السطح)","≈ 5,500°C (surface)"],f:["نجم يحتوي 99.8% من كتلة النظام الشمسي.","A star holding 99.8% of the system's mass."]},
+{n:["عطارد","Mercury"],c:"#b3aaa0",r:6,k:4879,g:3.7,o:88,d:["4,879 كم","4,879 km"],dist:["57.9 مليون كم","57.9 million km"],yr:["88 يوماً أرضياً","88 Earth days"],day:["58.6 يوماً أرضياً","58.6 Earth days"],m:["0","0"],t:["≈ 167°م (المتوسط)","≈ 167°C (average)"],f:["أصغر الكواكب وأقربها إلى الشمس.","The smallest planet, closest to the Sun."]},
+{n:["الزهرة","Venus"],c:"#e8c27a",r:9.5,k:12104,g:8.9,o:224.7,b:["#d9b066","#f2d8a2"],d:["12,104 كم","12,104 km"],dist:["108.2 مليون كم","108.2 million km"],yr:["224.7 يوماً أرضياً","224.7 Earth days"],day:["243 يوماً أرضياً (دوران عكسي)","243 Earth days (retrograde)"],m:["0","0"],t:["≈ 464°م","≈ 464°C"],f:["الأسخن بين الكواكب بسبب غلافها الكثيف.","The hottest planet, thanks to a thick atmosphere."]},
+{n:["الأرض","Earth"],c:"#3f86e6",r:10,k:12742,g:9.8,o:365.25,moon:1,land:1,d:["12,742 كم","12,742 km"],dist:["149.6 مليون كم","149.6 million km"],yr:["365.25 يوماً","365.25 days"],day:["23 ساعة و56 دقيقة","23 h 56 min"],m:["1 (القمر)","1 (the Moon)"],t:["≈ 15°م","≈ 15°C"],f:["الكوكب الوحيد المعروف بوجود حياة عليه.","The only planet known to support life."]},
+{n:["المريخ","Mars"],c:"#d1583a",r:7.5,k:6779,g:3.7,o:687,d:["6,779 كم","6,779 km"],dist:["227.9 مليون كم","227.9 million km"],yr:["687 يوماً أرضياً","687 Earth days"],day:["24 ساعة و37 دقيقة","24 h 37 min"],m:["2 (فوبوس، ديموس)","2 (Phobos, Deimos)"],t:["≈ -65°م","≈ -65°C"],f:["الكوكب الأحمر بسبب أكسيد الحديد في تربته.","The Red Planet, from iron oxide in its soil."]},
+{n:["المشتري","Jupiter"],c:"#d9a574",r:22,k:139820,g:24.8,o:4333,b:["#b87b4b","#ecd5b3","#c99a6c"],d:["139,820 كم","139,820 km"],dist:["778.5 مليون كم","778.5 million km"],yr:["11.86 سنة أرضية","11.86 Earth years"],day:["9 ساعات و56 دقيقة","9 h 56 min"],m:["+95 قمراً مؤكداً","95+ confirmed moons"],t:["≈ -110°م (قمة الغيوم)","≈ -110°C (cloud tops)"],f:["الأكبر بين الكواكب؛ بقعته الحمراء عاصفة هائلة.","The largest planet; its Great Red Spot is a giant storm."]},
+{n:["زحل","Saturn"],c:"#e6d29a",r:18,k:116460,g:10.4,o:10759,ring:1,b:["#cdb67f","#f1e3b8"],d:["116,460 كم","116,460 km"],dist:["1,434 مليون كم","1,434 million km"],yr:["29.4 سنة أرضية","29.4 Earth years"],day:["10 ساعات و33 دقيقة","10 h 33 min"],m:["+270 قمراً مؤكداً","270+ confirmed moons"],t:["≈ -140°م","≈ -140°C"],f:["مشهور بحلقاته الجليدية الواسعة.","Famous for its wide icy rings."]},
+{n:["أورانوس","Uranus"],c:"#8fe0e3",r:13,k:50724,g:8.9,o:30687,b:["#7fd0d4","#b0f0f2"],d:["50,724 كم","50,724 km"],dist:["2,871 مليون كم","2,871 million km"],yr:["84 سنة أرضية","84 Earth years"],day:["17 ساعة و14 دقيقة (دوران عكسي)","17 h 14 min (retrograde)"],m:["28","28"],t:["≈ -195°م","≈ -195°C"],f:["يدور على جنبه تقريباً (ميل 98°).","Spins almost on its side (98° tilt)."]},
+{n:["نبتون","Neptune"],c:"#4b6fe0",r:13,k:49244,g:11.2,o:60190,b:["#3f60cc","#6c8cf2"],d:["49,244 كم","49,244 km"],dist:["4,495 مليون كم","4,495 million km"],yr:["164.8 سنة أرضية","164.8 Earth years"],day:["16 ساعة و6 دقائق","16 h 6 min"],m:["16","16"],t:["≈ -200°م","≈ -200°C"],f:["أبعد الكواكب، وفيه أسرع رياح النظام.","The farthest planet, with the fastest winds."]}
+];
+const MS={4:[[2.3,2.4,1.3],[3.3,1.5,1.1]],5:[[1.55,3,1.6],[1.9,2.1,1.8],[2.35,1.4,2],[2.9,.9,2]],6:[[2.7,1.1,2],[3.1,.8,1.4],[3.5,.6,1.3]],7:[[1.9,1.7,1.4],[2.4,1.1,1.5],[2.9,.7,1.5]],8:[[2.2,1.3,2],[2.8,.8,1.2]]};
+const L=[["القطر","Diameter","d"],["البعد عن الشمس","Distance from Sun","dist"],["مدة دورانه حول الشمس","Orbital period","yr"],["مدة دورانه حول نفسه","Rotation period","day"],["الأقمار","Moons","m"],["الحرارة","Temperature","t"],["الجاذبية","Gravity","g"],["معلومة","Fact","f"]];
+const cv=document.getElementById("c"),x=cv.getContext("2d"),tip=document.getElementById("tip"),yrEl=document.getElementById("yr");
+const FR=[0,.09,.19,.30,.45,.65,.80,.91,1];
+let W,H,cx,cy,q,dpr,paused=false,hov=null,pin=null,speed=1,mx=0,my=0,t0=performance.now(),orbits=true,labels=true,eang=0;
+const stars=Array.from({length:220},()=>({x:Math.random(),y:Math.random(),s:Math.random()*1.4+.2,a:Math.random()*.6+.2,p:Math.random()*6}));
+const belt=Array.from({length:300},()=>({a:Math.random()*6.28,f:Math.random(),s:Math.random()*1.2+.4}));
+let neb;
+P.forEach((p,i)=>{p.a=Math.random()*6.28;p.i=i;p.w=p.o?1.6/Math.sqrt(p.o):0});
+function size(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;x.setTransform(dpr,0,0,dpr,0,0);
+ q=W<H?.8:.5;const top=W<700?90:100,bot=W<700?120:70;cx=W/2;cy=top+(H-top-bot)/2;
+ const R=Math.min(W/2-26,(H-top-bot)/2/q),s0=64;P.forEach(p=>{p.or=p.sun?0:s0+(R-s0)*FR[p.i]});
+ neb=x.createRadialGradient(W*.75,H*.25,0,W*.75,H*.25,Math.max(W,H)*.6);neb.addColorStop(0,"rgba(70,40,120,.28)");neb.addColorStop(1,"rgba(0,0,0,0)")}
+addEventListener("resize",size);size();
+const pos=p=>p.sun?[cx,cy]:[cx+Math.cos(p.a)*p.or,cy+Math.sin(p.a)*p.or*q];
+function planet(p,now){const px=p.px,py=p.py,r=p.r;
+ if(p.sun){const pu=1+.04*Math.sin(now/700);let h=x.createRadialGradient(px,py,r*.6,px,py,r*4.2*pu);h.addColorStop(0,"rgba(255,170,40,.5)");h.addColorStop(.4,"rgba(255,120,20,.14)");h.addColorStop(1,"rgba(255,100,0,0)");x.fillStyle=h;x.beginPath();x.arc(px,py,r*4.2*pu,0,6.3);x.fill();
+  h=x.createRadialGradient(px-r*.2,py-r*.2,0,px,py,r);h.addColorStop(0,"#fffbe0");h.addColorStop(.6,"#ffc940");h.addColorStop(1,"#ff8d1a");x.fillStyle=h;x.beginPath();x.arc(px,py,r,0,6.3);x.fill();return}
+ let dx=px-cx,dy=py-cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
+ if(p.ring){x.strokeStyle="rgba(214,190,130,.75)";[1.55,1.8,2.05].forEach((k,j)=>{x.lineWidth=j==1?2:4;x.beginPath();x.ellipse(px,py,r*k,r*k*.3,-.32,Math.PI,6.28);x.stroke()})}
+ const g=x.createRadialGradient(px-dx*r*.45,py-dy*r*.45,r*.1,px,py,r);g.addColorStop(0,"#fff");g.addColorStop(.18,p.c);g.addColorStop(1,p.c);
+ x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,6.3);x.fill();
+ x.save();x.beginPath();x.arc(px,py,r,0,6.3);x.clip();
+ if(p.b){x.globalAlpha=.4;for(let j=-5;j<=5;j++){x.fillStyle=p.b[(j+5)%p.b.length];x.fillRect(px-r,py+j*r/5.2,r*2,r/5.2*.7)}x.globalAlpha=1}
+ if(p.land){x.fillStyle="rgba(70,160,90,.85)";for(let k=0;k<4;k++){const a=now/2500+k*1.7,c=Math.cos(a);if(c>-.2){x.beginPath();x.ellipse(px+Math.sin(a)*r*.7,py+Math.sin(k*2.3)*r*.45,r*.28*(.4+c),r*.2,k,0,6.3);x.fill()}}}
+ const s=x.createRadialGradient(px-dx*r*.55,py-dy*r*.55,r*.35,px,py,r*1.08);s.addColorStop(0,"rgba(0,0,0,0)");s.addColorStop(1,"rgba(0,0,10,.82)");x.fillStyle=s;x.fillRect(px-r,py-r,r*2,r*2);x.restore();
+ if(p.ring){x.strokeStyle="rgba(230,208,150,.9)";[1.55,1.8,2.05].forEach((k,j)=>{x.lineWidth=j==1?2:4;x.beginPath();x.ellipse(px,py,r*k,r*k*.3,-.32,0,Math.PI);x.stroke()})}
+ if(p.moon){const a=now/700;x.fillStyle="#d8d8d8";x.beginPath();x.arc(px+Math.cos(a)*(r+8),py+Math.sin(a)*(r+8)*.5,2.3,0,6.3);x.fill()}
+ (MS[p.i]||[]).forEach(([k,s,z],j)=>{const a=now/1000*s+j*2;x.strokeStyle="rgba(255,255,255,.12)";x.lineWidth=1;x.beginPath();x.ellipse(px,py,r*k,r*k*.45,0,0,6.3);x.stroke();x.fillStyle="#dcdcdc";x.beginPath();x.arc(px+Math.cos(a)*r*k,py+Math.sin(a)*r*k*.45,z,0,6.3);x.fill()})}
+function frame(now){const dt=Math.min(now-t0,50);t0=now;
+ if(!paused&&!hov){P.forEach(p=>p.a+=p.w*speed*dt/1000);eang+=P[3].w*speed*dt/1000;belt.forEach(b=>b.a+=.05*speed*dt/1000)}
+ x.clearRect(0,0,W,H);x.fillStyle=neb;x.fillRect(0,0,W,H);
+ stars.forEach(s=>{x.fillStyle="rgba(255,255,255,"+(s.a*(.7+.3*Math.sin(now/900+s.p)))+")";x.fillRect(s.x*W,s.y*H,s.s,s.s)});
+ const sel=hov||pin;
+ if(orbits)P.forEach(p=>{if(p.sun)return;x.strokeStyle=sel===p?p.c:"rgba(255,255,255,.1)";x.lineWidth=sel===p?1.6:1;x.beginPath();x.ellipse(cx,cy,p.or,p.or*q,0,0,6.3);x.stroke()});
+ const b0=P[4].or,b1=P[5].or;x.fillStyle="rgba(190,180,165,.55)";
+ belt.forEach(b=>{const r=b0+(b1-b0)*(.3+.4*b.f);x.fillRect(cx+Math.cos(b.a)*r,cy+Math.sin(b.a)*r*q,b.s,b.s)});
+ P.forEach(p=>{[p.px,p.py]=pos(p)});
+ const order=P.slice().sort((a,b)=>a.py-b.py);
+ order.forEach(p=>{
+  if(!p.sun&&orbits){x.lineCap="round";for(let k=0;k<14;k++){const a1=p.a-k*.035,a0=a1-.035;x.strokeStyle=p.c;x.globalAlpha=.5*(1-k/14);x.lineWidth=2;x.beginPath();x.moveTo(cx+Math.cos(a1)*p.or,cy+Math.sin(a1)*p.or*q);x.lineTo(cx+Math.cos(a0)*p.or,cy+Math.sin(a0)*p.or*q);x.stroke()}x.globalAlpha=1}
+  planet(p,now);
+  if(sel===p){x.strokeStyle="rgba(255,255,255,.9)";x.lineWidth=1.5;x.setLineDash([4,4]);x.beginPath();x.arc(p.px,p.py,p.r*(p.ring?2.2:1)+7,0,6.3);x.stroke();x.setLineDash([])}
+  if(labels){x.textAlign="center";x.fillStyle="rgba(238,240,248,.92)";x.font="600 12px Cairo,Segoe UI,Arial";x.fillText(p.n[1],p.px,p.py+p.r*(p.ring?1:1)+17);x.fillStyle="rgba(141,149,179,.95)";x.font="11px Cairo,Segoe UI,Arial";x.fillText(p.n[0],p.px,p.py+p.r+30)}});
+ yrEl.textContent=(eang/6.2832).toFixed(2)+" سنة · yr";
+ requestAnimationFrame(frame)}
+function hit(){let f=null;for(const p of P.slice().reverse()){if(Math.hypot(mx-p.px,my-p.py)<=p.r*(p.ring?2.1:1)+8){f=p;break}}return f}
+function card(p){const ratio=p.k/12742,rt=p.sun?"≈ 109 × الأرض · Earth":(ratio>=1?ratio.toFixed(1)+" × ":ratio.toFixed(2)+" × ")+"الأرض · Earth";
+ const gv=p.g+" م/ث² · m/s²";const cell=(i,l)=>{const v=i==6?gv:p[L[i][2]][l];return"<div class='"+(l?"en":"ar")+"'><small>"+L[i][l]+"</small>"+v+"</div>"};
+ let rows="";for(let i=0;i<8;i++)rows+=cell(i,1)+cell(i,0);
+ return"<h2><span>"+p.n[1]+"</span>"+p.n[0]+"</h2><div class='sz'><span>حجم القطر مقارنة بالأرض</span><span>"+rt+"</span></div><div class='g'>"+rows+"</div>"}
+function render(){const p=hov||pin;if(!p){tip.style.display="none";return}
+ tip.style.setProperty("--c",p.c);tip.innerHTML=card(p);tip.style.display="block";
+ const dock=!hov||innerWidth<700;tip.classList.toggle("dock",!!dock&&!!pin&&!hov||innerWidth<700);
+ if(hov&&innerWidth>=700){tip.classList.remove("dock");const w=tip.offsetWidth,h=tip.offsetHeight;let l=mx+20,t=my+20;if(l+w>W-8)l=mx-w-20;if(l<8)l=8;if(t+h>H-8)t=H-h-8;if(t<8)t=8;tip.style.left=l+"px";tip.style.top=t+"px";tip.style.right="auto"}
+ else{tip.style.left="";tip.style.top="";tip.style.right=""}
+ document.querySelectorAll("#chips button").forEach(b=>{b.classList.toggle("on",pin&&P[b.dataset.i]===pin)})}
+function setPin(p){pin=(pin===p)?null:p;render()}
+function move(e){mx=e.clientX;my=e.clientY;hov=hit();cv.style.cursor=hov?"pointer":"default";render()}
+cv.addEventListener("pointermove",move);
+cv.addEventListener("pointerdown",e=>{move(e);const p=hit();if(p)pin=p;else pin=null;if(e.pointerType!=="mouse")hov=null;render()});
+cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse"){hov=null;render()}});
+cv.addEventListener("pointerleave",()=>{hov=null;render()});
+const ch=document.getElementById("chips");
+P.forEach((p,i)=>{const b=document.createElement("button");b.dataset.i=i;b.style.setProperty("--c",p.c);b.innerHTML="<i></i>"+p.n[0]+" <span>"+p.n[1]+"</span>";b.onclick=()=>setPin(p);ch.appendChild(b)});
+const tg=(id,fn,lab)=>{const b=document.getElementById(id);b.onclick=()=>{const v=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",v);fn(v)}};
+tg("pp",v=>{paused=!v;document.getElementById("pp").textContent=v?"إيقاف · Pause":"تشغيل · Play"});
+tg("bo",v=>orbits=v);tg("bl",v=>labels=v);
+document.getElementById("sp").oninput=e=>speed=+e.target.value;
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
